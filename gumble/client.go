@@ -30,9 +30,6 @@ const (
 	StateSynced
 )
 
-// ClientVersion is the protocol version that Client implements.
-const ClientVersion = 1<<16 | 3<<8 | 0
-
 // Client is the type used to create a connection to a server.
 type Client struct {
 	// The User associated with the client.
@@ -72,9 +69,10 @@ type Client struct {
 	// modified.
 	volatile rpwMutex
 
-	connect         chan *RejectError
-	end             chan struct{}
-	disconnectEvent DisconnectEvent
+	connect          chan *RejectError
+	end              chan struct{}
+	disconnectEvent  DisconnectEvent
+	useProtobufAudio bool
 }
 
 // Dial is an alias of DialWithDialer(new(net.Dialer), addr, config, nil).
@@ -107,8 +105,9 @@ func DialWithDialer(dialer *net.Dialer, addr string, config *Config, tlsConfig *
 
 		permissions: make(map[uint32]*Permission),
 
-		connect: make(chan *RejectError),
-		end:     make(chan struct{}),
+		connect:          make(chan *RejectError),
+		end:              make(chan struct{}),
+		useProtobufAudio: false,
 	}
 	client.state.Store(uint32(StateConnected))
 
@@ -116,10 +115,20 @@ func DialWithDialer(dialer *net.Dialer, addr string, config *Config, tlsConfig *
 
 	// Initial packets
 	versionPacket := MumbleProto.Version{
-		VersionV1: proto.Uint32(ClientVersion),
-		Release:   proto.String("gumble"),
+		Release:   proto.String(config.Release),
 		Os:        proto.String(runtime.GOOS),
 		OsVersion: proto.String(runtime.GOARCH),
+	}
+	switch version := config.Version.ToVersionInt().(type) {
+	case uint32:
+		versionPacket.VersionV1 = proto.Uint32(version)
+	case uint64:
+		versionPacket.VersionV2 = proto.Uint64(version)
+	default:
+		return nil, errors.New("config version doesn't return uint32 or uint64")
+	}
+	if config.Version.Major() > 1 || (config.Version.Major() == 1 && config.Version.Minor() >= 5) {
+		client.useProtobufAudio = true
 	}
 	authenticationPacket := MumbleProto.Authenticate{
 		Username: &client.Config.Username,
