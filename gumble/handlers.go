@@ -6,7 +6,6 @@ import (
 	"errors"
 	"math"
 	"net"
-	"sync/atomic"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -188,12 +187,12 @@ func (c *Client) handlePing(buffer []byte) error {
 		return err
 	}
 
-	atomic.AddUint32(&c.tcpPacketsReceived, 1)
+	c.tcpPacketsReceived.Add(1)
 
 	if packet.Timestamp != nil {
 		diff := time.Since(time.Unix(0, int64(*packet.Timestamp)))
 
-		index := int(c.tcpPacketsReceived) - 1
+		index := int(c.tcpPacketsReceived.Load()) - 1
 		if index >= len(c.tcpPingTimes) {
 			for i := 1; i < len(c.tcpPingTimes); i++ {
 				c.tcpPingTimes[i-1] = c.tcpPingTimes[i]
@@ -217,8 +216,8 @@ func (c *Client) handlePing(buffer []byte) error {
 		}
 		variance := sum / float32(index+1)
 
-		atomic.StoreUint32(&c.tcpPingAvg, math.Float32bits(avg))
-		atomic.StoreUint32(&c.tcpPingVar, math.Float32bits(variance))
+		c.tcpPingAvg.Store(math.Float32bits(avg))
+		c.tcpPingVar.Store(math.Float32bits(variance))
 	}
 	return nil
 }
@@ -271,7 +270,7 @@ func (c *Client) handleServerSync(buffer []byte) error {
 		val := int(*packet.MaxBandwidth)
 		event.MaximumBitrate = &val
 	}
-	atomic.StoreUint32(&c.state, uint32(StateSynced))
+	c.state.Store(uint32(StateSynced))
 	c.Config.Listeners.onConnect(&event)
 	close(c.connect)
 	return nil

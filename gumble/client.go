@@ -50,10 +50,10 @@ type Client struct {
 	tmpACL      *ACL
 
 	// Ping stats
-	tcpPacketsReceived uint32
+	tcpPacketsReceived atomic.Uint32
 	tcpPingTimes       [12]float32
-	tcpPingAvg         uint32
-	tcpPingVar         uint32
+	tcpPingAvg         atomic.Uint32
+	tcpPingVar         atomic.Uint32
 
 	// A collection containing the server's context actions.
 	ContextActions ContextActions
@@ -66,7 +66,7 @@ type Client struct {
 	// will disable voice targeting (i.e. switch back to regular speaking).
 	VoiceTarget *VoiceTarget
 
-	state uint32
+	state atomic.Uint32
 
 	// volatile is held by the client when the internal data structures are being
 	// modified.
@@ -107,11 +107,10 @@ func DialWithDialer(dialer *net.Dialer, addr string, config *Config, tlsConfig *
 
 		permissions: make(map[uint32]*Permission),
 
-		state: uint32(StateConnected),
-
 		connect: make(chan *RejectError),
 		end:     make(chan struct{}),
 	}
+	client.state.Store(uint32(StateConnected))
 
 	go client.readRoutine()
 
@@ -168,7 +167,7 @@ func DialWithDialer(dialer *net.Dialer, addr string, config *Config, tlsConfig *
 
 // State returns the current state of the client.
 func (c *Client) State() State {
-	return State(atomic.LoadUint32(&c.state))
+	return State(c.state.Load())
 }
 
 // AudioOutgoing creates a new channel that outgoing audio data can be written
@@ -200,9 +199,10 @@ func (c *Client) pingRoutine() {
 	var timestamp uint64
 	var tcpPingAvg float32
 	var tcpPingVar float32
+	tcpPackets := c.tcpPacketsReceived.Load()
 	packet := MumbleProto.Ping{
 		Timestamp:  &timestamp,
-		TcpPackets: &c.tcpPacketsReceived,
+		TcpPackets: &tcpPackets,
 		TcpPingAvg: &tcpPingAvg,
 		TcpPingVar: &tcpPingVar,
 	}
@@ -210,8 +210,8 @@ func (c *Client) pingRoutine() {
 	t := time.Now()
 	for {
 		timestamp = uint64(t.UnixNano())
-		tcpPingAvg = math.Float32frombits(atomic.LoadUint32(&c.tcpPingAvg))
-		tcpPingVar = math.Float32frombits(atomic.LoadUint32(&c.tcpPingVar))
+		tcpPingAvg = math.Float32frombits(c.tcpPingAvg.Load())
+		tcpPingVar = math.Float32frombits(c.tcpPingVar.Load())
 		c.Conn.WriteProto(&packet)
 
 		select {
@@ -241,7 +241,7 @@ func (c *Client) readRoutine() {
 	}
 
 	wasSynced := c.State() == StateSynced
-	atomic.StoreUint32(&c.state, uint32(StateDisconnected))
+	c.state.Store(uint32(StateDisconnected))
 	close(c.end)
 	if wasSynced {
 		c.Config.Listeners.onDisconnect(&c.disconnectEvent)

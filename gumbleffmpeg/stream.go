@@ -42,7 +42,7 @@ type Stream struct {
 	cmd     *exec.Cmd
 	pipe    io.ReadCloser
 	pause   chan struct{}
-	elapsed int64
+	elapsed atomic.Int64
 
 	state State
 
@@ -148,7 +148,7 @@ func (s *Stream) Wait() {
 
 // Elapsed returns the amount of audio that has been played by the stream.
 func (s *Stream) Elapsed() time.Duration {
-	return time.Duration(atomic.LoadInt64(&s.elapsed))
+	return time.Duration(s.elapsed.Load())
 }
 
 func (s *Stream) process() {
@@ -180,7 +180,7 @@ func (s *Stream) process() {
 				float := float32(int16(binary.LittleEndian.Uint16(byteBuffer[i*2 : (i+1)*2])))
 				int16Buffer[i] = int16(s.Volume * float)
 			}
-			atomic.AddInt64(&s.elapsed, int64(interval))
+			s.elapsed.Add(int64(interval))
 			outgoing <- gumble.AudioBuffer(int16Buffer)
 		}
 	}
