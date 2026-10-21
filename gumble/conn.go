@@ -127,7 +127,7 @@ func (c *Conn) WriteAudioLegacy(format, target byte, sequence int64, final bool,
 }
 
 func (c *Conn) WriteAudioProtobuf(target byte, sequence int64, final bool, data []byte, X, Y, Z *float32) error {
-	msg := MumbleProtoUDP.Audio{
+	msg := &MumbleProtoUDP.Audio{
 		Header:       &MumbleProtoUDP.Audio_Target{Target: uint32(target)},
 		FrameNumber:  uint64(sequence),
 		IsTerminator: final,
@@ -137,7 +137,7 @@ func (c *Conn) WriteAudioProtobuf(target byte, sequence int64, final bool, data 
 		msg.PositionalData = append(msg.PositionalData, *X, *Y, *Z)
 	}
 
-	msgData, err := proto.Marshal(&msg)
+	msgData, err := proto.Marshal(msg)
 	if err != nil {
 		return err
 	}
