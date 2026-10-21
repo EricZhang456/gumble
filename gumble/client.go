@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 	"layeh.com/gumble/gumble/MumbleProto"
 )
 
@@ -117,7 +117,7 @@ func DialWithDialer(dialer *net.Dialer, addr string, config *Config, tlsConfig *
 
 	// Initial packets
 	versionPacket := MumbleProto.Version{
-		Version:   proto.Uint32(ClientVersion),
+		VersionV1: proto.Uint32(ClientVersion),
 		Release:   proto.String("gumble"),
 		Os:        proto.String(runtime.GOOS),
 		OsVersion: proto.String(runtime.GOARCH),

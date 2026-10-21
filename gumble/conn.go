@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 	"layeh.com/gumble/gumble/MumbleProto"
 	"layeh.com/gumble/gumble/varint"
 )

@@ -1,7 +1,7 @@
 package gumble
 
 import (
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 	"layeh.com/gumble/gumble/MumbleProto"
 )
 
