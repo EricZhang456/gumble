@@ -53,7 +53,10 @@ var handlers = [...]func(*Client, []byte) error{
 func parseVersion(packet *MumbleProto.Version) Version {
 	var version Version
 	if packet.VersionV1 != nil {
-		version.Version = *packet.VersionV1
+		version.LegacyVersion = *packet.VersionV1
+	}
+	if packet.VersionV2 != nil {
+		version.Version = *packet.VersionV2
 	}
 	if packet.Release != nil {
 		version.Release = *packet.Release
@@ -1246,7 +1249,8 @@ func (c *Client) handleSuggestConfig(buffer []byte) error {
 	}
 	if packet.VersionV1 != nil {
 		event.SuggestVersion = &Version{
-			Version: packet.GetVersionV1(),
+			Version:       packet.GetVersionV2(),
+			LegacyVersion: packet.GetVersionV1(),
 		}
 	}
 	if packet.Positional != nil {

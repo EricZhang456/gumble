@@ -39,7 +39,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
 	}
-	major, minor, patch := resp.Version.SemanticVersion()
+	major, minor, patch, _ := resp.Version.SemanticVersion()
 
 	if !*jsonOutput {
 		fmt.Printf("Address:         %s\n", resp.Address)

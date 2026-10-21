@@ -98,7 +98,7 @@ func Ping(address string, interval, timeout time.Duration) (*PingResponse, error
 			Address: conn.RemoteAddr().(*net.UDPAddr),
 			Ping:    time.Since(sendTime),
 			Version: Version{
-				Version: binary.BigEndian.Uint32(incoming[0:]),
+				LegacyVersion: binary.BigEndian.Uint32(incoming[0:]),
 			},
 			ConnectedUsers: int(binary.BigEndian.Uint32(incoming[12:])),
 			MaximumUsers:   int(binary.BigEndian.Uint32(incoming[16:])),
