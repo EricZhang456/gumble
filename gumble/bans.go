@@ -4,8 +4,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/EricZhang456/gumble/gumble/MumbleProto"
 	"google.golang.org/protobuf/proto"
-	"layeh.com/gumble/gumble/MumbleProto"
 )
 
 // BanList is a list of server ban entries.

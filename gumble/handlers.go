@@ -8,10 +8,10 @@ import (
 	"net"
 	"time"
 
+	"github.com/EricZhang456/gumble/gumble/MumbleProto"
+	"github.com/EricZhang456/gumble/gumble/MumbleProtoUDP"
+	"github.com/EricZhang456/gumble/gumble/varint"
 	"google.golang.org/protobuf/proto"
-	"layeh.com/gumble/gumble/MumbleProto"
-	"layeh.com/gumble/gumble/MumbleProtoUDP"
-	"layeh.com/gumble/gumble/varint"
 )
 
 var (

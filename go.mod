@@ -1,4 +1,4 @@
-module layeh.com/gumble
+module github.com/EricZhang456/gumble
 
 go 1.23
 

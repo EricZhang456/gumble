@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/EricZhang456/gumble/gumble"
 	"github.com/dchote/go-openal/openal"
-	"layeh.com/gumble/gumble"
 )
 
 var (
