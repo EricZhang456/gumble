@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"layeh.com/gumble/gumble/MumbleProto"
+	"layeh.com/gumble/gumble/MumbleProtoUDP"
 	"layeh.com/gumble/gumble/varint"
 )
 
@@ -23,6 +24,7 @@ type Conn struct {
 
 	MaximumPacketBytes int
 	Timeout            time.Duration
+	ProtobufAudio      bool
 
 	buffer []byte
 }
@@ -33,7 +35,12 @@ func NewConn(conn net.Conn) *Conn {
 		Conn:               conn,
 		Timeout:            time.Second * 20,
 		MaximumPacketBytes: 1024 * 1024 * 10,
+		ProtobufAudio:      false,
 	}
+}
+
+func (c *Conn) SetProtobufAudio(value bool) {
+	c.ProtobufAudio = value
 }
 
 // ReadPacket reads a packet from the server. Returns the packet type, the
@@ -63,6 +70,13 @@ func (c *Conn) ReadPacket() (uint16, []byte, error) {
 
 // WriteAudio writes an audio packet to the connection.
 func (c *Conn) WriteAudio(format, target byte, sequence int64, final bool, data []byte, X, Y, Z *float32) error {
+	if !c.ProtobufAudio {
+		return c.WriteAudioLegacy(format, target, sequence, final, data, X, Y, Z)
+	}
+	return c.WriteAudioProtobuf(target, sequence, final, data, X, Y, Z)
+}
+
+func (c *Conn) WriteAudioLegacy(format, target byte, sequence int64, final bool, data []byte, X, Y, Z *float32) error {
 	var buff [1 + varint.MaxVarintLen*2]byte
 	buff[0] = (format << 5) | target
 	n := varint.Encode(buff[1:], sequence)
@@ -107,6 +121,31 @@ func (c *Conn) WriteAudio(format, target byte, sequence int64, final bool, data 
 		if err := binary.Write(c.Conn, binary.LittleEndian, *Z); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (c *Conn) WriteAudioProtobuf(target byte, sequence int64, final bool, data []byte, X, Y, Z *float32) error {
+	msg := MumbleProtoUDP.Audio{
+		Header:       &MumbleProtoUDP.Audio_Target{Target: uint32(target)},
+		FrameNumber:  uint64(sequence),
+		IsTerminator: final,
+		OpusData:     data,
+	}
+	if X != nil && Y != nil && Z != nil {
+		msg.PositionalData = append(msg.PositionalData, *X, *Y, *Z)
+	}
+
+	msgData, err := proto.Marshal(&msg)
+	if err != nil {
+		return err
+	}
+	if err := c.writeHeader(1, uint32(len(msgData))); err != nil {
+		return err
+	}
+	if _, err := c.Conn.Write(msgData); err != nil {
+		return err
 	}
 
 	return nil

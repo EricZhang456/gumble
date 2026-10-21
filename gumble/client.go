@@ -129,6 +129,7 @@ func DialWithDialer(dialer *net.Dialer, addr string, config *Config, tlsConfig *
 	}
 	if config.Version.Major() > 1 || (config.Version.Major() == 1 && config.Version.Minor() >= 5) {
 		client.useProtobufAudio = true
+		client.Conn.SetProtobufAudio(true)
 	}
 	authenticationPacket := MumbleProto.Authenticate{
 		Username: &client.Config.Username,

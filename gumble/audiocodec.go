@@ -8,6 +8,11 @@ const (
 	audioCodecIDOpus = 4
 )
 
+const (
+	protobufAudioMessage = 0
+	protobufPingMessage  = 1
+)
+
 var (
 	audioCodecsLock sync.Mutex
 	audioCodecs     [8]AudioCodec

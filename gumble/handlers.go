@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"layeh.com/gumble/gumble/MumbleProto"
+	"layeh.com/gumble/gumble/MumbleProtoUDP"
 	"layeh.com/gumble/gumble/varint"
 )
 
@@ -79,6 +80,13 @@ func (c *Client) handleVersion(buffer []byte) error {
 }
 
 func (c *Client) handleUDPTunnel(buffer []byte) error {
+	if !c.useProtobufAudio {
+		return c.handleUDPTunnelLegacy(buffer)
+	}
+	return c.handleUDPTunnelProtobuf(buffer)
+}
+
+func (c *Client) handleUDPTunnelLegacy(buffer []byte) error {
 	if len(buffer) < 1 {
 		return errInvalidProtobuf
 	}
@@ -174,6 +182,77 @@ func (c *Client) handleUDPTunnel(buffer []byte) error {
 		}
 		ch <- &event
 		c.volatile.Lock()
+	}
+	c.volatile.Unlock()
+
+	return nil
+}
+
+func (c *Client) handleUDPTunnelProtobuf(buffer []byte) error {
+	if buffer[0] == protobufPingMessage {
+		return nil
+	}
+
+	var packet MumbleProtoUDP.Audio
+	if err := proto.Unmarshal(buffer[1:], &packet); err != nil {
+		return err
+	}
+
+	user := c.Users[packet.GetSenderSession()]
+	decoder := user.decoder
+	if decoder == nil {
+		codec := c.audioCodec
+		if codec == nil {
+			return errNoCodec
+		}
+		decoder = codec.NewDecoder()
+		user.decoder = decoder
+	}
+
+	pcm, err := decoder.Decode(packet.OpusData, AudioMaximumFrameSize)
+	if err != nil {
+		return nil
+	}
+
+	event := AudioPacket{
+		Client:      c,
+		Sender:      user,
+		AudioBuffer: AudioBuffer(pcm),
+	}
+
+	switch target := packet.Header.(type) {
+	case *MumbleProtoUDP.Audio_Context:
+		event.Target = &VoiceTarget{
+			ID: uint32(target.Context),
+		}
+	default:
+		return errors.New("Received target in Audio message from server")
+	}
+
+	position := packet.GetPositionalData()
+	if len(position) > 0 {
+		event.X = position[0]
+		event.Y = position[1]
+		event.Z = position[2]
+		event.HasPosition = true
+	}
+
+	c.volatile.Lock()
+	for item := c.Config.AudioListeners.head; item != nil; item = item.next {
+		c.volatile.Unlock()
+		ch := item.streams[user]
+		if ch == nil {
+			ch = make(chan *AudioPacket)
+			item.streams[user] = ch
+			event := AudioStreamEvent{
+				Client: c,
+				User:   user,
+				C:      ch,
+			}
+			item.listener.OnAudioStream(&event)
+		}
+		ch <- &event
+		c.volatile.Unlock()
 	}
 	c.volatile.Unlock()
 
